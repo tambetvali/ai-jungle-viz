@@ -1,11 +1,38 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from 'react';
+import { AtomTier } from '@/data/atoms';
+import { Atom } from '@/data/atoms';
+import { JungleSidebar } from '@/components/JungleSidebar';
+import { AtomCanvas } from '@/components/AtomCanvas';
+import { InfoPanel } from '@/components/InfoPanel';
 
 const Index = () => {
+  const [activeTier, setActiveTier] = useState<AtomTier | null>(null);
+  const [selectedAtom, setSelectedAtom] = useState<Atom | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const handleTierSelect = (tier: AtomTier) => {
+    setActiveTier(prev => prev === tier ? null : tier);
+    setSelectedAtom(null);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="flex h-screen w-full overflow-hidden bg-background">
+      <JungleSidebar
+        activeTier={activeTier}
+        onTierSelect={handleTierSelect}
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(c => !c)}
+      />
+      <div className="flex-1 relative min-w-0 h-full">
+        <AtomCanvas
+          activeTier={activeTier}
+          selectedAtom={selectedAtom}
+          onSelectAtom={setSelectedAtom}
+        />
+        <InfoPanel
+          atom={selectedAtom}
+          onClose={() => setSelectedAtom(null)}
+        />
       </div>
     </div>
   );
