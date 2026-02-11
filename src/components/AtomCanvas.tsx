@@ -99,12 +99,16 @@ export function AtomCanvas({ activeTier, selectedAtom, onSelectAtom }: AtomCanva
 
   return (
     <div
-      className="w-full h-full relative overflow-hidden cursor-grab active:cursor-grabbing"
+      className="w-full h-full relative overflow-hidden cursor-grab active:cursor-grabbing select-none"
       style={{ background: 'hsl(180, 15%, 4%)' }}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
+      onWheel={(e) => {
+        e.preventDefault();
+        setZoom(z => Math.min(Math.max(z - e.deltaY * 0.001, 0.3), 2.5));
+      }}
     >
       {/* Grid */}
       <div
