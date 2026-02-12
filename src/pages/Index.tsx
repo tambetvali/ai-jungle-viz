@@ -20,6 +20,7 @@ const Index = () => {
       <JungleSidebar
         activeTier={activeTier}
         onTierSelect={handleTierSelect}
+        onShowAll={() => { setActiveTier(null); setSelectedAtom(null); }}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(c => !c)}
       />
