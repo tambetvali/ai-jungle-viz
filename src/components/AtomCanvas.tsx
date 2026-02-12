@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { atoms, Atom, AtomTier, TIER_LABELS } from '@/data/atoms';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Home } from 'lucide-react';
 
 interface AtomCanvasProps {
   activeTier: AtomTier | null;
@@ -43,43 +43,68 @@ function layoutAtoms(filteredAtoms: Atom[]) {
 }
 
 export function AtomCanvas({ activeTier, selectedAtom, onSelectAtom }: AtomCanvasProps) {
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const INITIAL_PAN = { x: 40, y: 60 };
+  const [pan, setPan] = useState(INITIAL_PAN);
   const [zoom, setZoom] = useState(1);
-  const dragging = useRef(false);
+  const isDragging = useRef(false);
+  const didDrag = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
+  const startMouse = useRef({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const filtered = activeTier ? atoms.filter(a => a.tier === activeTier) : atoms;
   const { positions, totalHeight } = layoutAtoms(filtered);
+
+  const DRAG_THRESHOLD = 4;
+
+  const clampPan = useCallback((p: { x: number; y: number }, z: number) => {
+    const el = containerRef.current;
+    if (!el) return p;
+    const vw = el.clientWidth;
+    const vh = el.clientHeight;
+    const cw = 1200 * z;
+    const ch = (totalHeight + 200) * z;
+    return {
+      x: Math.min(vw * 0.3, Math.max(p.x, vw - cw - 40)),
+      y: Math.min(vh * 0.3, Math.max(p.y, vh - ch - 40)),
+    };
+  }, [totalHeight]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const step = 80;
       switch (e.key) {
-        case 'ArrowUp': setPan(p => ({ ...p, y: p.y + step })); break;
-        case 'ArrowDown': setPan(p => ({ ...p, y: p.y - step })); break;
-        case 'ArrowLeft': setPan(p => ({ ...p, x: p.x + step })); break;
-        case 'ArrowRight': setPan(p => ({ ...p, x: p.x - step })); break;
+        case 'ArrowUp': setPan(p => clampPan({ ...p, y: p.y + step }, zoom)); break;
+        case 'ArrowDown': setPan(p => clampPan({ ...p, y: p.y - step }, zoom)); break;
+        case 'ArrowLeft': setPan(p => clampPan({ ...p, x: p.x + step }, zoom)); break;
+        case 'ArrowRight': setPan(p => clampPan({ ...p, x: p.x - step }, zoom)); break;
         case '+': case '=': setZoom(z => Math.min(z + 0.15, 2.5)); break;
         case '-': setZoom(z => Math.max(z - 0.15, 0.3)); break;
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [zoom, clampPan]);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
-    dragging.current = true;
+    isDragging.current = true;
+    didDrag.current = false;
     lastMouse.current = { x: e.clientX, y: e.clientY };
+    startMouse.current = { x: e.clientX, y: e.clientY };
   }, []);
   const onMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragging.current) return;
-    setPan(p => ({
+    if (!isDragging.current) return;
+    const dx = e.clientX - startMouse.current.x;
+    const dy = e.clientY - startMouse.current.y;
+    if (!didDrag.current && Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
+    didDrag.current = true;
+    setPan(p => clampPan({
       x: p.x + (e.clientX - lastMouse.current.x),
       y: p.y + (e.clientY - lastMouse.current.y),
-    }));
+    }, zoom));
     lastMouse.current = { x: e.clientX, y: e.clientY };
-  }, []);
-  const onMouseUp = useCallback(() => { dragging.current = false; }, []);
+  }, [zoom, clampPan]);
+  const onMouseUp = useCallback(() => { isDragging.current = false; }, []);
 
   // Bond lines
   const bondLines: { x1: number; y1: number; x2: number; y2: number; tier: AtomTier }[] = [];
@@ -99,6 +124,7 @@ export function AtomCanvas({ activeTier, selectedAtom, onSelectAtom }: AtomCanva
 
   return (
     <div
+      ref={containerRef}
       className="w-full h-full relative overflow-hidden cursor-grab active:cursor-grabbing select-none"
       style={{ background: 'hsl(180, 15%, 4%)' }}
       onMouseDown={onMouseDown}
@@ -212,7 +238,7 @@ export function AtomCanvas({ activeTier, selectedAtom, onSelectAtom }: AtomCanva
                 cursor: 'pointer',
                 zIndex: isSelected ? 20 : 10,
               }}
-              onClick={(e) => { e.stopPropagation(); onSelectAtom(isSelected ? null : atom); }}
+              onClick={(e) => { e.stopPropagation(); if (!didDrag.current) onSelectAtom(isSelected ? null : atom); }}
               whileHover={{ scale: 1.15 }}
               initial={{ opacity: 0, scale: 0 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -299,13 +325,21 @@ export function AtomCanvas({ activeTier, selectedAtom, onSelectAtom }: AtomCanva
         })}
       </div>
 
-      {/* Nav arrows */}
+      {/* Nav arrows + Home */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1" style={{ zIndex: 30 }}>
+        <button onClick={() => setPan(INITIAL_PAN)} style={{
+          width: 32, height: 32, borderRadius: 6,
+          background: 'hsl(180, 10%, 12%, 0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'hsl(170, 20%, 50%)', border: 'none', cursor: 'pointer',
+        }}>
+          <Home size={14} />
+        </button>
         {[
-          { icon: ChevronLeft, fn: () => setPan(p => ({ ...p, x: p.x + 80 })) },
-          { icon: ChevronUp, fn: () => setPan(p => ({ ...p, y: p.y + 80 })) },
-          { icon: ChevronDown, fn: () => setPan(p => ({ ...p, y: p.y - 80 })) },
-          { icon: ChevronRight, fn: () => setPan(p => ({ ...p, x: p.x - 80 })) },
+          { icon: ChevronLeft, fn: () => setPan(p => clampPan({ ...p, x: p.x + 80 }, zoom)) },
+          { icon: ChevronUp, fn: () => setPan(p => clampPan({ ...p, y: p.y + 80 }, zoom)) },
+          { icon: ChevronDown, fn: () => setPan(p => clampPan({ ...p, y: p.y - 80 }, zoom)) },
+          { icon: ChevronRight, fn: () => setPan(p => clampPan({ ...p, x: p.x - 80 }, zoom)) },
         ].map(({ icon: Icon, fn }, i) => (
           <button key={i} onClick={fn} style={{
             width: 32, height: 32, borderRadius: 6,

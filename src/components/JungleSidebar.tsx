@@ -5,6 +5,7 @@ import { Atom, Zap, Cpu, Sparkles, ChevronLeft, ChevronRight } from 'lucide-reac
 interface JungleSidebarProps {
   activeTier: AtomTier | null;
   onTierSelect: (tier: AtomTier) => void;
+  onShowAll: () => void;
   collapsed: boolean;
   onToggle: () => void;
 }
@@ -23,7 +24,7 @@ const tiers: { tier: AtomTier; icon: React.ElementType; desc: string }[] = [
   { tier: 'meta', icon: Atom, desc: 'Emergent meta patterns' },
 ];
 
-export function JungleSidebar({ activeTier, onTierSelect, collapsed, onToggle }: JungleSidebarProps) {
+export function JungleSidebar({ activeTier, onTierSelect, onShowAll, collapsed, onToggle }: JungleSidebarProps) {
   return (
     <motion.aside
       className="h-full bg-card/80 backdrop-blur-md border-r border-border flex flex-col z-40 relative shrink-0"
@@ -39,8 +40,10 @@ export function JungleSidebar({ activeTier, onTierSelect, collapsed, onToggle }:
 
       {!collapsed && (
         <div className="px-4 py-4 border-b border-border">
-          <h2 className="font-display text-xs text-primary tracking-wider" style={{ textShadow: '0 0 8px hsl(175, 80%, 45% / 0.6)' }}>AI JUNGLE</h2>
-          <p className="text-[9px] text-muted-foreground mt-1">Mock-Physics Explorer</p>
+          <button onClick={onShowAll} className="text-left group">
+            <h2 className="font-display text-xs text-primary tracking-wider group-hover:underline" style={{ textShadow: '0 0 8px hsl(175, 80%, 45% / 0.6)' }}>AI JUNGLE</h2>
+            <p className="text-[9px] text-muted-foreground mt-1">Mock-Physics Explorer</p>
+          </button>
         </div>
       )}
 
